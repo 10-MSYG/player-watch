@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Football Play Tracker</title>
+<style>
+body {
+font-family: Arial, sans-serif;
+padding: 0;
+margin: 0;
+background: #f0f0f0;
+}
+
+h2 {
+font-size: 22px;
+text-align: center;
+padding: 10px;
+background: #007BFF;
+color: white;
+margin: 0;
+}
+
+.controls {
+display: flex;
+flex-wrap: wrap;
+justify-content: center;
+gap: 10px;
+padding: 10px;
+background: white;
+position: sticky;
+top: 0;
+z-index: 10;
+border-bottom: 1px solid #ccc;
+}
+
+button {
+padding: 8px 12px;
+font-size: 16px;
+background: #007BFF;
+color: white;
+border: none;
+border-radius: 5px;
+cursor: pointer;
+}
+
+button:disabled {
+background-color: #ccc;
+cursor: not-allowed;
+}
+
+.player {
+width: 130px;
+background: white;
+border-radius: 10px;
+box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+padding: 10px;
+text-align: center;
+font-size: 14px;
+}
+
+.in {
+background-color: #d4fcd4;
+}
+
+.done {
+background-color: #ffdcdc;
+}
+
+#players {
+display: flex;
+flex-wrap: wrap;
+gap: 10px;
+justify-content: center;
+padding: 10px;
+}
+
+.jersey-input {
+width: 60px;
+font-size: 18px;
+margin-bottom: 8px;
+text-align: center;
+}
+
+.play-count {
+font-weight: bold;
+margin-bottom: 6px;
+}
+
+.hide-btn {
+font-size: 12px;
+margin-top: 4px;
+background: #dc3545;
+}
+</style>
+</head>
+<body>
+
+<h2>📋 Football Play Tracker</h2>
+
+<div class="controls">
+<button id="addPlayBtn" onclick="addPlayToAll()">➕ Add 1 Play</button>
+<button onclick="subInLineup('offense')">🏈 Sub In Offense</button>
+<button onclick="subInLineup('defense')">🛡️ Sub In Defense</button>
+<button onclick="toggleView()"><span id="toggleText">👁️ Show All</span></button>
+</div>
+
+<div id="players"></div>
+
+<script>
+const playerCount = 40;
+const requiredPlays = 4;
+let showAll = false;
+
+const players = [];
+for (let i = 0; i < playerCount; i++) {
+players.push({
+jersey: '',
+plays: 0,
+inGame: false,
+hidden: false,
+starter: 'none'
+});
+}
+
+function renderPlayers() {
+const container = document.getElementById('players');
+container.innerHTML = '';
+
+players.forEach((p, i) => {
+if (p.hidden) return;
+if (!p.inGame && !showAll) return;
+
+const div = document.createElement('div');
+div.className = 'player';
+if (p.inGame) div.classList.add('in');
+if (p.plays >= requiredPlays) div.classList.add('done');
+
+div.innerHTML = `
+<input class="jersey-input" type="number" value="${p.jersey}" onchange="updateJersey(${i}, this.value)" placeholder="#">
+<div class="play-count">Plays: ${p.plays}</div>
+<button onclick="subOut(${i})">${p.inGame ? 'Sub Out' : 'Sub In'}</button>
+<button onclick="cycleStarter(${i})">⭐ ${starterLabel(p.starter)}</button>
+<button class="hide-btn" onclick="hidePlayer(${i})">🗑️ Hide</button>
+`;
+container.appendChild(div);
+});
+
+document.getElementById('addPlayBtn').disabled = players.filter(p => p.inGame && !p.hidden).length !== 11;
+document.getElementById('toggleText').textContent = showAll ? '🙈 Hide Benched' : '👁️ Show All';
+}
+
+function updateJersey(i, value) {
+players[i].jersey = value;
+}
+
+function starterLabel(type) {
+if (type === 'offense') return 'O';
+if (type === 'defense') return 'D';
+if (type === 'both') return 'O/D';
+return '';
+}
+
+function cycleStarter(i) {
+const p = players[i];
+const offenseCount = players.filter(pl => pl.starter === 'offense' || pl.starter === 'both').length;
+const defenseCount = players.filter(pl => pl.starter === 'defense' || pl.starter === 'both').length;
+
+if (p.starter === 'none') {
+if (offenseCount < 11) {
+p.starter = 'offense';
+} else if (defenseCount < 11) {
+p.starter = 'defense';
+}
+} else if (p.starter === 'offense') {
+if (defenseCount < 11) {
+p.starter = 'both';
+} else {
+p.starter = 'none';
+}
+} else if (p.starter === 'both') {
+p.starter = 'defense';
+} else {
+p.starter = 'none';
+}
+renderPlayers();
+}
+
+function subInLineup(type) {
+players.forEach(p => p.inGame = false);
+let count = 0;
+for (let i = 0; i < players.length && count < 11; i++) {
+const p = players[i];
+if (!p.hidden && (p.starter === type || p.starter === 'both')) {
+p.inGame = true;
+count++;
+}
+}
+renderPlayers();
+}
+
+function addPlayToAll() {
+const inCount = players.filter(p => p.inGame && !p.hidden).length;
+if (inCount !== 11) {
+alert("You must have exactly 11 players on the field.");
+return;
+}
+players.forEach(p => {
+if (p.inGame && !p.hidden) p.plays++;
+});
+renderPlayers();
+}
+
+function subOut(index) {
+const current = players[index];
+if (!current.inGame) {
+if (players.filter(p => p.inGame && !p.hidden).length >= 11) {
+alert("Already 11 players on field.");
+return;
+}
+current.inGame = true;
+renderPlayers();
+return;
+}
+
+const subs = players
+.map((p, i) => (!p.inGame && !p.hidden && i !== index) ? `#${p.jersey || i + 1} (Index: ${i})` : null)
+.filter(x => x !== null);
+
+const input = prompt(`Sub OUT #${current.jersey}. Enter index of player to sub in:\n${subs.join('\n')}`);
+const subIndex = parseInt(input);
+if (!isNaN(subIndex) && subIndex >= 0 && subIndex < players.length && !players[subIndex].inGame && !players[subIndex].hidden) {
+current.inGame = false;
+players[subIndex].inGame = true;
+renderPlayers();
+} else {
+alert("Invalid input.");
+}
+}
+
+function hidePlayer(i) {
+if (confirm("Hide this player? They will be removed from the screen.")) {
+players[i].hidden = true;
+players[i].inGame = false;
+renderPlayers();
+}
+}
+
+function toggleView() {
+showAll = !showAll;
+renderPlayers();
+}
+
+// 🚫 Prevent accidental page reload or close
+window.onbeforeunload = function () {
+return "Are you sure? Reloading will erase all player data.";
+};
+
+renderPlayers();
+</script>
+</body>
+</html>
